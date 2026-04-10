@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>猜數字遊戲</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.2);
+      padding: 2rem;
+      margin-bottom: 1.25rem;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      text-align: center;
+      color: #4c3a8f;
+      margin-bottom: 1.5rem;
+    }
+
+    .input-row {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1rem;
+    }
+
+    input[type="number"] {
+      flex: 1;
+      padding: .7rem 1rem;
+      border: 2px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      outline: none;
+      transition: border-color .2s;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type="number"]:focus { border-color: #7c3aed; }
+    input[type="number"]:disabled { background: #f3f4f6; cursor: not-allowed; }
+
+    button {
+      padding: .7rem 1.4rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-primary { background: #7c3aed; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #6d28d9; }
+
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover:not(:disabled) { background: #d1d5db; }
+
+    .hint {
+      text-align: center;
+      font-size: 1.3rem;
+      font-weight: 700;
+      min-height: 2.2rem;
+      padding: .5rem;
+      border-radius: 8px;
+      margin-bottom: .75rem;
+    }
+    .hint.higher  { color: #dc2626; background: #fee2e2; }
+    .hint.lower   { color: #2563eb; background: #dbeafe; }
+    .hint.correct { color: #16a34a; background: #dcfce7; }
+    .hint.error   { color: #b45309; background: #fef3c7; }
+    .hint.idle    { color: #9ca3af; }
+
+    .count-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: .5rem;
+    }
+
+    .count-badge { font-size: 1rem; color: #6b7280; }
+    .count-badge span { font-weight: 700; color: #7c3aed; font-size: 1.3rem; }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: .75rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .stat-box {
+      background: #f5f3ff;
+      border-radius: 10px;
+      padding: .75rem .5rem;
+      text-align: center;
+    }
+    .stat-box .val { font-size: 1.4rem; font-weight: 700; color: #7c3aed; }
+    .stat-box .lbl { font-size: .72rem; color: #6b7280; margin-top: .2rem; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+    }
+    th, td { padding: .5rem .6rem; text-align: left; }
+    th { color: #6b7280; font-weight: 600; border-bottom: 2px solid #e5e7eb; }
+    tr:not(:last-child) td { border-bottom: 1px solid #f3f4f6; }
+    .no-data { text-align: center; color: #9ca3af; padding: 1.5rem 0; }
+
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Game Card -->
+  <div class="card">
+    <h1>🎯 猜數字遊戲</h1>
+    <p style="text-align:center;color:#6b7280;margin-bottom:1.5rem;">
+      系統已隨機選擇 1～100 的整數，請猜猜看！
+    </p>
+
+    <div class="input-row">
+      <input id="guessInput" type="number" min="1" max="100" placeholder="輸入 1～100" />
+      <button id="guessBtn" class="btn-primary" onclick="submitGuess()">猜！</button>
+    </div>
+
+    <div id="hint" class="hint idle">請輸入你的猜測！</div>
+
+    <div class="count-row">
+      <div class="count-badge">本局猜測次數：<span id="guessCount">0</span></div>
+      <button class="btn-secondary" onclick="startNewGame()">🔄 開始新局</button>
+    </div>
+  </div>
+
+  <!-- Stats Card -->
+  <div class="card">
+    <div class="section-title">📊 個人成績</div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="val" id="statBest">—</div>
+        <div class="lbl">最佳成績（次）</div>
+      </div>
+      <div class="stat-box">
+        <div class="val" id="statAvg5">—</div>
+        <div class="lbl">近 5 局平均</div>
+      </div>
+      <div class="stat-box">
+        <div class="val" id="statTotal">0</div>
+        <div class="lbl">完成局數</div>
+      </div>
+    </div>
+
+    <div class="section-title">📋 歷史紀錄</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>完成時間</th>
+          <th>猜測次數</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="3" class="no-data">尚無紀錄</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  // ─── Game State ────────────────────────────────────────────────────────────
+  const STORAGE_KEY = 'guessNumberHistory';
+  let answer = 0;
+  let guessCount = 0;
+  let gameOver = false;
+
+  // ─── Storage helpers ────────────────────────────────────────────────────────
+  function loadHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  function saveResult(count) {
+    const history = loadHistory();
+    history.unshift({ finishedAt: new Date().toISOString(), guessCount: count });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  }
+
+  // ─── UI helpers ─────────────────────────────────────────────────────────────
+  function setHint(text, cls) {
+    const el = document.getElementById('hint');
+    el.textContent = text;
+    el.className = 'hint ' + cls;
+  }
+
+  function renderStats() {
+    const history = loadHistory();
+    const total = history.length;
+
+    document.getElementById('statTotal').textContent = total;
+
+    if (total === 0) {
+      document.getElementById('statBest').textContent = '—';
+      document.getElementById('statAvg5').textContent = '—';
+      document.getElementById('historyBody').innerHTML =
+        '<tr><td colspan="3" class="no-data">尚無紀錄</td></tr>';
+      return;
+    }
+
+    const counts = history.map(g => g.guessCount);
+    const best = Math.min(...counts);
+    const last5 = counts.slice(0, 5);
+    const avg5 = (last5.reduce((a, b) => a + b, 0) / last5.length).toFixed(1);
+
+    document.getElementById('statBest').textContent = best;
+    document.getElementById('statAvg5').textContent = avg5;
+
+    document.getElementById('historyBody').innerHTML = history
+      .slice(0, 10)
+      .map((g, i) => {
+        const dt = new Date(g.finishedAt).toLocaleString();
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${dt}</td>
+          <td>${g.guessCount}</td>
+        </tr>`;
+      })
+      .join('');
+  }
+
+  // ─── Game logic ─────────────────────────────────────────────────────────────
+  function startNewGame() {
+    answer = Math.floor(Math.random() * 100) + 1;
+    guessCount = 0;
+    gameOver = false;
+
+    const input = document.getElementById('guessInput');
+    input.value = '';
+    input.disabled = false;
+    document.getElementById('guessBtn').disabled = false;
+    document.getElementById('guessCount').textContent = '0';
+    setHint('請輸入你的猜測！', 'idle');
+    input.focus();
+  }
+
+  function submitGuess() {
+    if (gameOver) {
+      setHint('⚠️ 本局已結束，請開始新局', 'error');
+      return;
+    }
+
+    const input = document.getElementById('guessInput');
+    const raw = input.value.trim();
+    const num = Number(raw);
+    const value = num;
+
+    if (!raw || !Number.isInteger(num) || value < 1 || value > 100) {
+      setHint('⚠️ 請輸入 1～100 的整數（不可輸入小數）', 'error');
+      return;
+    }
+
+    guessCount++;
+    document.getElementById('guessCount').textContent = guessCount;
+    input.value = '';
+
+    if (value > answer) {
+      setHint('📈 大了！再猜小一點', 'higher');
+    } else if (value < answer) {
+      setHint('📉 小了！再猜大一點', 'lower');
+    } else {
+      setHint(`🎉 恭喜通過！共猜了 ${guessCount} 次`, 'correct');
+      gameOver = true;
+      input.disabled = true;
+      document.getElementById('guessBtn').disabled = true;
+      saveResult(guessCount);
+      renderStats();
+    }
+  }
+
+  // ─── Init ────────────────────────────────────────────────────────────────────
+  document.getElementById('guessInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitGuess();
+  });
+
+  startNewGame();
+  renderStats();
+</script>
+</body>
+</html>
