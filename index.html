@@ -285,10 +285,11 @@
 
     const input = document.getElementById('guessInput');
     const raw = input.value.trim();
-    const value = parseInt(raw, 10);
+    const num = Number(raw);
+    const value = num;
 
-    if (!raw || isNaN(value) || value < 1 || value > 100) {
-      setHint('⚠️ 請輸入 1～100 的整數', 'error');
+    if (!raw || !Number.isInteger(num) || value < 1 || value > 100) {
+      setHint('⚠️ 請輸入 1～100 的整數（不可輸入小數）', 'error');
       return;
     }
 
